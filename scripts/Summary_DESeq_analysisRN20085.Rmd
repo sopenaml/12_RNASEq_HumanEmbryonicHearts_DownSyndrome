@@ -1,0 +1,293 @@
+---
+title: "Transcriptomic analysis of human embryonic hearts with or without Down Syndrome: RN20085"
+author: "Miriam_Llorian"
+date: "Last update: `r format(Sys.time(), '%d %B, %Y')`"
+always_allow_html: yes                                                                                                                                                        
+output:
+  html_document:
+    theme: united
+    df_print: tibble
+    toc: true
+    toc_depth: 4
+    toc_float: true
+    code_folding: hide
+
+    
+---
+
+
+```{css setup_css, echo=FALSE}
+body .main-container {
+  max-width: 100%;
+}
+
+
+```
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Background
+Down syndrome is caused by trisomy of human chromosome 21 and about 50% of babies born with Down syndrome have congenital heart defects (CHD). We have been studied the heart defects in Down syndrome using a mouse model that we have generated in the lab (Lana-Elola, eLife 2016). 
+The Dp1Tyb mouse model for Down syndrome contains a duplication of 23Mb of mouse chromosome 16 (Mmu16) that is orthologous to human chromosome 21 (Hsa21). This region contains 148 coding genes, and thus these genes are present in 3 copies. Dp1Tyb mice display congenital heart defects, similar to the ones seen in people with Down syndrome. These defects include ventricular and atrio-ventricular septal defects and are seen at embryonic day 14.5 (E14.5) of gestation. Using RNAseq, we analysed the gene expression changes in Dp1Tyb and wild-type littermate embryonic hearts and we found changes that gave insights into potential mechanisms leading to CHD. Recent transcriptomic studies and pathway analysis performed in our lab on the Dp1Tyb mice showed reduced expression of genes associated with proliferation and mitochondria, but increased expression of extracellular matrix (ECM) genes. We have also observed reduced cell proliferation in the developing heart, abnormal mitochondrial potential in cardiomyocytes from Dp1Tyb embryonic hearts and alteration of specific signalling pathways.
+
+This project: Transcriptomic analysis of human embryonic hearts with or without Down Syndrome
+We are very interested in finding out if the gene expression and cellular changes we observe in the embryonic hearts of our DS mouse models are also altered in human DS embryonic hearts. If so, this would validate our mouse studies as a true reflection of what is happening in the human condition. There is evidence in the literature of altered expression of mitochondrial and extracellular genes in hearts from human fetuses with Down syndrome (Conti, BMC Genomics 2007), but this study was performed using microarray.
+
+We have access, via the Human Developmental Biology Resource (HDBR), to frozen hearts from foetuses with Down syndrome and age-matched, sex-matched euploid controls. We propose to do bulk RNAseq on 5 hearts from foetuses with Down syndrome and 5 controls.
+
+***
+Experimental Approach: 
+
+Based on our previous work, we aim to analyse 5 DS and 5 matched controls. For the transcriptomic analysis that we performed on mouse hearts, we used 5 Dp1Tyb and 5 controls. The global transcriptomic changes are low but this number of samples were sufficient to find increased expression pattern of the duplicated genes, find differentially expressed genes and altered pathways (by Gene Set Enrichment Analysis). Also, our reanalysis of published mRNA expression data (obtained using the now-obsolete microarray methodology) from human DS embryonic hearts (Conti et al. 2007) showed that 5 samples were per condition were sufficient to see changes in specific pathways. 
+
+***
+
+### Key Parameters
+
+Initial data sequenced is found in:   
+
+ *  /camp/stp/babs/inputs/sequencing/fastq/201001_K00371_0407_BHJ5YHBBXY/fastq/RN20085/
+
+ * genome : human Ensembl GRCh38 - release 89 
+ * aligner : STAR/2.5.2a-foss-2016b
+
+ * software : Trimmomatic/0.36-Java-1.7.0_80 ; RSEM/1.2.31-foss-2016b ; STAR/2.5.2a-foss-2016b; SAMtools/1.3.1-foss-2016b; picard/2.1.1-Java-1.8.0_112 ; RNA-SeQC/1.1.8-Java-1.7.0_80 ; R/3.5.1-foss-2016b-BABS ; DESeq2_1.28.0 
+
+***
+
+
+```{r echo=FALSE, message=FALSE, warnings=FALSE}
+
+library(DESeq2)
+library(biomaRt)
+library(ggplot2)
+library("RColorBrewer")
+library("gplots")
+library("genefilter")
+library("lattice")
+library("pheatmap")
+library(tidyr)
+library(dplyr)
+library(d3heatmap)
+library(plotly)
+library(ggrepel)
+library(htmlwidgets)
+library(pcaExplorer)
+library(DT)
+
+load( "/camp/stp/babs/working/sopenam/projects/tybulewiczv/eva.lana-elola/12_RNASeq_HumanEmbryonicHearts_DownSyndrome/results/DESeq/DESeq_analysis.RData" ) 
+
+
+projectDir <- "/camp/stp/babs/working/sopenam/projects/"
+### Change the following entries for each project accordingly
+PI <- "tybulewiczv/"
+scientist <- "eva.lana-elola/"
+project <- "12_RNASeq_HumanEmbryonicHearts_DownSyndrome/"
+
+
+#directory where to export results
+DESeq.Dir <- paste0(projectDir,PI, scientist, project, "/results/DESeq/")
+
+```
+
+
+## MultiQC
+
+
+As mentioned by Rob, "When demultiplexing this project, I noticed there seems to be something not quite right with the sample ‘LAN757A19’.  This sample received many more reads than we were anticipating following the prep, which it likely because the library was difficult to quantify accurately.  In addition, the GC content of the sample looks a bit different to the others." 
+
+Sample ‘LAN757A19’ has 93 million reads, and 90% high duplication rate after alignment. It also presents low GC content 40% vs 50% for the rest. The rest of the metrics are  comparable to the rest of of the samples I will carry out the analysis with all the samples for the time being.
+
+
+```{r, echo=FALSE}
+library(htmltools)
+
+htmltools::tags$iframe(title = "MultiQC report", width= "100%", height= "1000", src = "https:///wiki-bioinformatics.crick.ac.uk/~sopenam/projects/tybulewiczv/eva.lana-elola/12_RNASeq_HumanEmbryonicHearts_DownSyndrome/multiqc_report.html")
+
+```
+
+***
+
+## Design Table 
+
+```{r, echo=FALSE, message=FALSE}
+
+
+datatable( as.data.frame(colData(dds)), rownames=FALSE, options=list(pageLength = 10, scrollX=T))
+
+```
+
+
+## PCA plots
+
+Samples broadly cluster by treatment, although there clusters aren't completely separated to each other. 
+
+```{r, echo=FALSE, out.width=c('50%', '50%'), fig.show='hold'}
+
+datacustomPCA <- plotPCA(rld1,intgroup= c("treatment", 
+                                          "Gender", 
+                                          "sample"), returnData=TRUE)
+percentVar <- round(100 * attr(datacustomPCA, "percentVar"))
+
+ggplot(datacustomPCA, aes(PC1, PC2, color= treatment, shape= Gender)) +
+  geom_point(size=3) +
+  xlab(paste0("PC1: ",percentVar[1],"% variance")) +
+  ylab(paste0("PC2: ",percentVar[2],"% variance")) +
+  coord_fixed() + 
+  theme(text=element_text(size=7) )+
+  #scale_color_brewer(palette="Paired")+ 
+  geom_text_repel(aes(label = sample),
+                  segment.alpha = 0.5 )
+
+```
+
+
+There is a fair amount of variability between individuals. Control samples are clustered relatively close together but DS samples are scattered all over the PCA. There's a sample a DS male that clusters away from the rest and drives PC1, interestingly this isn't the one with very high number of reads and duplication rate. PC2 seems to be driven by Gender although not entirely.
+
+## Heatmap of the sample-to-sample distances
+
+
+```{r echo=FALSE, out.width=c('50%', '50%'), fig.show='hold'}
+
+library("RColorBrewer")
+library("pheatmap")
+
+distsRL1 <- dist(t(assay(rld1)))
+
+sampleDistMatrix <- as.matrix(distsRL1)
+rownames(sampleDistMatrix) <- colData$Sample.ReplicateGroup
+colnames(sampleDistMatrix) <- NULL
+colors <- colorRampPalette(rev(brewer.pal(9,"Blues"))) (255)
+pheatmap (sampleDistMatrix, 
+          clustering_distance_rows=distsRL1,
+          clustering_distance_cols=distsRL1,
+          col=colors)
+
+
+```
+
+
+## Differential Expression Analysis
+
+###  Genes differentially expressed between DS and control
+
+This is the point of infection. Genes with a positive log2FC are higher expressed in MISK and genes with log2FC negative are higher expressed in MISA. The volcano plot is highlighting genes that are significant and within the LM22 gene set. 
+
+```{r, warning=FALSE, message=FALSE}
+
+toplot_d0 <- merge( as.data.frame(res_DS_vs_control), lookup,by.x=0, by.y=1)
+
+toplot_d0 <- toplot_d0 %>%
+  mutate( log10_padj= -log10(padj)) %>%
+mutate( sig= case_when(
+  #  Row.names %in% LM22.geneIds$gene_id & padj <= 0.05 ~ "LM22.sig",
+   # Row.names %in% LM22.geneIds$gene_id ~ "LM22.notSig",
+    padj <= 0.05 ~ "sig",
+    padj > 0.05 ~ "notSig",
+    TRUE ~ "x"
+    ))   %>%
+   filter( !sig=="x" ) %>%
+   arrange( desc(sig))
+
+
+     ggplot(toplot_d0, aes( log2FoldChange, log10_padj, color= sig) ) + 
+  geom_point(aes(col=sig)) +
+ # scale_color_brewer (palette= "Set2" )
+      # scale_color_manual(values=c("darkgrey",  "darkorange", "grey45","dodgerblue" )) +
+        scale_color_manual(values=c("grey45","dodgerblue" )) +
+  #scale_color_manual(values=c("red",  "grey45", "yellow","darkgrey" )) +
+  geom_text_repel(data = subset(toplot_d0, log10_padj > 2.5 & abs(log2FoldChange) > 1), aes(label=external_gene_name), 
+                  min.segment.length = 0,
+                  point.padding=0.5) 
+
+
+     plot_ly(toplot_d0,
+       x= ~ baseMean,
+       y= ~ log2FoldChange,
+       type= "scatter", mode= "markers",
+       color = ~ sig,
+          colors = c( "grey45","dodgerblue" ),
+  # Hover text:
+  text = ~ toplot_d0$external_gene_name) %>%
+  layout(xaxis= list(title= "mean Expression", showline=F, zeroline = F, type = "log"))
+
+
+datatable(DF_DS_vs_control [,c(1,8,2:7,9:11 )], options= list( pageLength = 10, scrollX =T ))
+
+```
+
+### Heatmaps 
+
+
+```{r, echo=FALSE, fig.height=12, fig.width=8}
+
+
+distEisen <- function(x, use = "pairwise.complete.obs") {
+  co.x <- cor(x, use = use)
+  dist.co.x <- 1 - co.x
+  return(as.dist(dist.co.x))
+}
+
+colors <- colorRampPalette( rev(brewer.pal(9, "PuOr")) )(255)
+
+sidecols <-  brewer.pal( 8,"Set1")[ rld1$treatment]
+mat1 <- assay(rld1)[ rownames(assay(rld1)) %in% sigdifgenes, ]
+colnames(mat1) <- rld1$condition
+Rowv   <- as.dendrogram(hclust(distEisen(t(mat1)), method = "ave"));
+
+heatmap.2 (mat1,
+           # key=T,
+           #keysize=1,
+           # dendrogram control
+           Rowv = Rowv,
+           Colv=T, # if TRUE dendrogram = "both"
+           distfun = dist,
+           hclustfun = hclust,
+           dendrogram = "both",
+           symm = FALSE,
+           # data scaling
+           scale = "row",
+           na.rm=TRUE,
+           # colors
+           col=colors,
+           ColSideColors=sidecols,
+           # level trace
+           trace="none",
+           density.info="none",
+           #Row/Col labelling
+           labRow = F,
+           labCol = rld1$Sample.ReplicateGroup,
+           cexCol=0.7,
+           #cexRow=0.8,
+           mar=c(9,11),
+           srtCol=45, 
+           #adjCol = c(0,1),
+           # main=list("genes_changing_in_MDS_vs_healthy",cex=1.5)
+)
+legend("topright", legend=(levels(rld1$treatment)),
+       fill= brewer.pal( 8,"Set1"), border = F,bty="n", y.intersp = 0.9, cex=0.8)
+```
+
+#### Expression Values for genes in Chr21
+
+I've extracted all genes from Chr21, and provide gene expression changes for all of them. Genes are ordered by it's location on chromosome 21. I was hoping to see that the majority of genes had a similar log2fc as seen it before, but for some reason that's not the case here. 
+
+
+```{r}
+
+datatable( genes_in_chr21[,c(1,8,9,3,4,7)],rownames=FALSE, options= list( pageLength = 10, scrollX =T ))
+write.table( genes_in_chr21[,c(1,8,9,3,4,7)], paste0(DESeq.Dir, "ExpressionValues_ForGenes_in_Chr21.txt"), row.names = F, sep="\t", quote=F)
+```
+
+
+
+### Session Info
+
+```{r}
+sessionInfo()
+```
+
